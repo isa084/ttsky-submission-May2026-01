@@ -9,6 +9,10 @@ Within each frame, the high pulse width selects the servo position:
 - center: about 1.5 ms
 - maximum: about 2.0 ms
 
+Feature summary:
+
+### UART preset control
+
 The command interface is intentionally simple:
 
 - `ui[0]` receives UART data
@@ -18,10 +22,23 @@ The command interface is intentionally simple:
 - `M` selects the maximum preset
 - `s` or `S` enables an automatic sweep mode that steps through the preset range once per frame
 
-Two extra behaviors make the module more practical on the bench:
+### Direct preset overrides
 
-- a sweep/self-test mode that repeatedly walks the target position between minimum and maximum
-- a watchdog-style failsafe that returns the output to center after a programmable number of inactive frames
+The dedicated inputs `ui[1]`, `ui[2]`, and `ui[3]` force center, minimum, and
+maximum output positions. These inputs take precedence over the UART-controlled
+target and give a simple hardware override path.
+
+### Sweep/self-test mode
+
+The sweep mode repeatedly walks the target position between minimum and maximum.
+It is intended for bring-up and bench observation, where a moving output is
+easier to validate than a static preset.
+
+### Inactivity failsafe
+
+A watchdog-style failsafe returns the output to center after a programmable
+number of inactive frames. This keeps the module useful as a practical command
+interface block rather than only as a waveform generator demo.
 
 The design also exposes internal status on the regular Tiny Tapeout outputs:
 
@@ -56,7 +73,8 @@ Expected outputs:
 - `uo[6]` goes high when failsafe has forced the output back to center
 - `uo[7]` goes high while sweep mode is running
 
-The repository also includes a cocotb regression in `test/test.py` that checks reset behavior, UART commands, sweep mode, the failsafe path, and output status flags.
+The repository also includes a feature-oriented cocotb regression rooted at
+`test/test.py`. The detailed coverage plan is documented in `verif.md`.
 
 ## External hardware
 
