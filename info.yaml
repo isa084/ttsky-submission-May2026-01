@@ -1,6 +1,6 @@
 # Tiny Tapeout project information
 project:
-  title:        "UART Servo Pulse Generator"      # Project title
+  title:        "UART Positioning PWM Interface"      # Project title
   author:       "Isaar Ahmad, Iqbal Ahson"      # Your name
   discord:      ""      # Your discord username, for communication and automatically assigning you a Tapeout role (optional)
   description:  "Receives UART commands and generates a hobby-servo PWM output."      # One line description of what your project does
