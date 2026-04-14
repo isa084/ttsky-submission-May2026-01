@@ -3,7 +3,6 @@ from cocotb.clock import Clock
 from cocotb.triggers import ClockCycles, FallingEdge, RisingEdge
 
 CLK_PERIOD_NS = 10
-SIM_CLKS_PER_BIT = 4
 
 
 def ack_bit(dut):
@@ -16,6 +15,15 @@ def preset_code(dut):
 
 def servo_pwm(dut):
     return dut.uo_out.value.to_unsigned() & 0x1
+
+
+def cfg_value(dut, signal_name):
+    return getattr(dut, signal_name).value.to_unsigned()
+
+
+def digit_pulse(min_pulse_cycles, max_pulse_cycles, digit):
+    pulse_step = (max_pulse_cycles - min_pulse_cycles) // 9
+    return min_pulse_cycles + (digit * pulse_step)
 
 
 def set_uart_rx(dut, level):
@@ -38,19 +46,19 @@ async def measure_next_pulse(dut):
     return high_cycles
 
 
-async def send_uart_byte(dut, data):
+async def send_uart_byte(dut, data, clks_per_bit):
     await FallingEdge(dut.clk)
     set_uart_rx(dut, 0)
-    await ClockCycles(dut.clk, SIM_CLKS_PER_BIT)
+    await ClockCycles(dut.clk, clks_per_bit)
 
     for bit_idx in range(8):
         await FallingEdge(dut.clk)
         set_uart_rx(dut, (data >> bit_idx) & 0x1)
-        await ClockCycles(dut.clk, SIM_CLKS_PER_BIT)
+        await ClockCycles(dut.clk, clks_per_bit)
 
     await FallingEdge(dut.clk)
     set_uart_rx(dut, 1)
-    await ClockCycles(dut.clk, SIM_CLKS_PER_BIT * 2)
+    await ClockCycles(dut.clk, clks_per_bit * 2)
 
 
 @cocotb.test()
@@ -69,36 +77,50 @@ async def test_project(dut):
     await ClockCycles(dut.clk, 2)
     dut.rst_n.value = 1
 
+    clks_per_bit = cfg_value(dut, "cfg_clks_per_bit")
+    min_pulse_cycles = cfg_value(dut, "cfg_min_pulse_cycles")
+    center_pulse_cycles = cfg_value(dut, "cfg_center_pulse_cycles")
+    max_pulse_cycles = cfg_value(dut, "cfg_max_pulse_cycles")
+    digit_7_pulse_cycles = digit_pulse(min_pulse_cycles, max_pulse_cycles, 7)
+
+    dut._log.info(
+        "Test configuration: clks_per_bit=%d min=%d center=%d max=%d",
+        clks_per_bit,
+        min_pulse_cycles,
+        center_pulse_cycles,
+        max_pulse_cycles,
+    )
+
     pulse_width = await measure_next_pulse(dut)
-    assert pulse_width == 15, f"expected center pulse, got {pulse_width}"
+    assert pulse_width == center_pulse_cycles, f"expected center pulse, got {pulse_width}"
     assert preset_code(dut) == 5, f"expected preset code 5 after reset, got {preset_code(dut)}"
 
     previous_ack = ack_bit(dut)
-    await send_uart_byte(dut, ord("m"))
+    await send_uart_byte(dut, ord("m"), clks_per_bit)
     pulse_width = await measure_next_pulse(dut)
-    assert pulse_width == 10, f"expected min pulse, got {pulse_width}"
+    assert pulse_width == min_pulse_cycles, f"expected min pulse, got {pulse_width}"
     assert preset_code(dut) == 0, f"expected preset code 0 after 'm', got {preset_code(dut)}"
     assert ack_bit(dut) != previous_ack, "ack bit did not toggle after 'm'"
 
     previous_ack = ack_bit(dut)
-    await send_uart_byte(dut, ord("M"))
+    await send_uart_byte(dut, ord("M"), clks_per_bit)
     pulse_width = await measure_next_pulse(dut)
-    assert pulse_width == 19, f"expected max pulse, got {pulse_width}"
+    assert pulse_width == max_pulse_cycles, f"expected max pulse, got {pulse_width}"
     assert preset_code(dut) == 9, f"expected preset code 9 after 'M', got {preset_code(dut)}"
     assert ack_bit(dut) != previous_ack, "ack bit did not toggle after 'M'"
 
     previous_ack = ack_bit(dut)
-    await send_uart_byte(dut, ord("7"))
+    await send_uart_byte(dut, ord("7"), clks_per_bit)
     pulse_width = await measure_next_pulse(dut)
-    assert pulse_width == 17, f"expected digit 7 pulse, got {pulse_width}"
+    assert pulse_width == digit_7_pulse_cycles, f"expected digit 7 pulse, got {pulse_width}"
     assert preset_code(dut) == 7, f"expected preset code 7 after '7', got {preset_code(dut)}"
     assert ack_bit(dut) != previous_ack, "ack bit did not toggle after '7'"
     assert ((dut.uo_out.value.to_unsigned() >> 6) & 0x1) == 1, "command_seen flag was not set"
 
     previous_ack = ack_bit(dut)
-    await send_uart_byte(dut, ord("x"))
+    await send_uart_byte(dut, ord("x"), clks_per_bit)
     pulse_width = await measure_next_pulse(dut)
-    assert pulse_width == 17, f"invalid command changed pulse width to {pulse_width}"
+    assert pulse_width == digit_7_pulse_cycles, f"invalid command changed pulse width to {pulse_width}"
     assert ack_bit(dut) == previous_ack, "ack bit changed for invalid command"
 
     assert dut.uio_out.value.to_unsigned() == 0, f"expected uio_out tie-off, got {dut.uio_out.value.to_unsigned():#x}"
