@@ -30,6 +30,7 @@ module tt_um_isa084_uart_servo #(
   reg sweep_active;
   reg sweep_direction;
   reg [7:0] inactivity_frames;
+  reg command_seen_since_frame;
 
   wire [7:0] rx_data;
   wire rx_valid;
@@ -44,7 +45,7 @@ module tt_um_isa084_uart_servo #(
   wire cmd_max;
   wire cmd_sweep;
   wire valid_command;
-  wire control_activity;
+  wire frame_control_activity;
   wire [3:0] sweep_next_code;
   wire sweep_next_direction;
 
@@ -78,7 +79,8 @@ module tt_um_isa084_uart_servo #(
   assign cmd_max = rx_valid && (rx_data == "M");
   assign cmd_sweep = rx_valid && ((rx_data == "s") || (rx_data == "S"));
   assign valid_command = cmd_digit || cmd_center || cmd_min || cmd_max || cmd_sweep;
-  assign control_activity = override_center || override_min || override_max || valid_command || sweep_active;
+  assign frame_control_activity =
+      override_center || override_min || override_max || valid_command || command_seen_since_frame || sweep_active;
   assign sweep_next_code = (preset_code == 4'd9) ? 4'd8 :
                            (preset_code == 4'd0) ? 4'd1 :
                            (sweep_direction ? (preset_code + 4'd1) : (preset_code - 4'd1));
@@ -97,7 +99,12 @@ module tt_um_isa084_uart_servo #(
       sweep_active <= 1'b0;
       sweep_direction <= 1'b1;
       inactivity_frames <= 8'd0;
+      command_seen_since_frame <= 1'b0;
     end else begin
+      if (valid_command) begin
+        command_seen_since_frame <= 1'b1;
+      end
+
       if (frame_tick) begin
         frame_counter <= {COUNTER_WIDTH{1'b0}};
       end else begin
@@ -155,13 +162,15 @@ module tt_um_isa084_uart_servo #(
       end
 
       if (frame_tick) begin
-        if (control_activity) begin
+        command_seen_since_frame <= 1'b0;
+
+        if (frame_control_activity) begin
           inactivity_frames <= 8'd0;
         end else if (inactivity_frames < FAILSAFE_FRAMES) begin
           inactivity_frames <= inactivity_frames + 8'd1;
         end
 
-        if (!control_activity && (inactivity_frames == FAILSAFE_FRAMES - 1)) begin
+        if (!frame_control_activity && (inactivity_frames == FAILSAFE_FRAMES - 1)) begin
           target_pulse_cycles <= CENTER_PULSE_CYCLES[COUNTER_WIDTH-1:0];
           pulse_cycles <= CENTER_PULSE_CYCLES[COUNTER_WIDTH-1:0];
           preset_code <= 4'd5;
