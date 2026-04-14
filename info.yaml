@@ -3,7 +3,7 @@ project:
   title:        "UART Positioning PWM Interface"      # Project title
   author:       "Isaar Ahmad, Iqbal Ahson"      # Your name
   discord:      ""      # Your discord username, for communication and automatically assigning you a Tapeout role (optional)
-  description:  "Receives UART commands and generates a hobby-servo PWM output."      # One line description of what your project does
+  description:  "Receives UART commands and generates a servo PWM output with sweep and failsafe modes."      # One line description of what your project does
   language:     "Verilog" # other examples include SystemVerilog, Amaranth, VHDL, etc
   clock_hz:     25000000       # Clock frequency in Hz (or 0 if not applicable)
 
@@ -40,8 +40,8 @@ pinout:
   uo[3]: "Preset code bit 1"
   uo[4]: "Preset code bit 2"
   uo[5]: "Preset code bit 3"
-  uo[6]: "Valid command seen"
-  uo[7]: "UART receiver busy"
+  uo[6]: "Failsafe active"
+  uo[7]: "Sweep mode active"
 
   # Bidirectional pins
   uio[0]: ""

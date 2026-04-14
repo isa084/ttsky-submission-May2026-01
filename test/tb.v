@@ -11,6 +11,8 @@ module tb ();
   localparam integer TEST_MIN_PULSE_CYCLES = 25000;
   localparam integer TEST_CENTER_PULSE_CYCLES = 37500;
   localparam integer TEST_MAX_PULSE_CYCLES = 50000;
+  localparam integer TEST_FAILSAFE_FRAMES = 32;
+  localparam integer TEST_GATE_LEVEL = 1;
 `else
   localparam integer TEST_CLKS_PER_BIT = 4;
   localparam integer TEST_COUNTER_WIDTH = 8;
@@ -18,6 +20,8 @@ module tb ();
   localparam integer TEST_MIN_PULSE_CYCLES = 10;
   localparam integer TEST_CENTER_PULSE_CYCLES = 15;
   localparam integer TEST_MAX_PULSE_CYCLES = 19;
+  localparam integer TEST_FAILSAFE_FRAMES = 8;
+  localparam integer TEST_GATE_LEVEL = 0;
 `endif
 
   // Wire up the inputs and outputs:
@@ -33,6 +37,8 @@ module tb ();
   wire [31:0] cfg_min_pulse_cycles;
   wire [31:0] cfg_center_pulse_cycles;
   wire [31:0] cfg_max_pulse_cycles;
+  wire [31:0] cfg_failsafe_frames;
+  wire [31:0] cfg_gate_level;
 `ifdef GL_TEST
   wire VPWR = 1'b1;
   wire VGND = 1'b0;
@@ -42,6 +48,8 @@ module tb ();
   assign cfg_min_pulse_cycles = TEST_MIN_PULSE_CYCLES;
   assign cfg_center_pulse_cycles = TEST_CENTER_PULSE_CYCLES;
   assign cfg_max_pulse_cycles = TEST_MAX_PULSE_CYCLES;
+  assign cfg_failsafe_frames = TEST_FAILSAFE_FRAMES;
+  assign cfg_gate_level = TEST_GATE_LEVEL;
 
   initial begin
     $dumpfile("tb.fst");
@@ -74,7 +82,8 @@ module tb ();
       .FRAME_CYCLES(TEST_FRAME_CYCLES),
       .MIN_PULSE_CYCLES(TEST_MIN_PULSE_CYCLES),
       .CENTER_PULSE_CYCLES(TEST_CENTER_PULSE_CYCLES),
-      .MAX_PULSE_CYCLES(TEST_MAX_PULSE_CYCLES)
+      .MAX_PULSE_CYCLES(TEST_MAX_PULSE_CYCLES),
+      .FAILSAFE_FRAMES(TEST_FAILSAFE_FRAMES)
   ) user_project (
       .ui_in(ui_in),
       .uo_out(uo_out),

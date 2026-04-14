@@ -1,6 +1,6 @@
 ## How it works
 
-This project implements a UART-controlled hobby-servo pulse generator.
+This project implements a UART-controlled servo positioning interface with a built-in sweep mode and inactivity failsafe.
 
 At the default 25 MHz project clock, the design generates a repeating 20 ms frame on `uo[0]`.
 Within each frame, the high pulse width selects the servo position:
@@ -16,13 +16,19 @@ The command interface is intentionally simple:
 - `c` or `C` selects the center preset
 - `m` selects the minimum preset
 - `M` selects the maximum preset
+- `s` or `S` enables an automatic sweep mode that steps through the preset range once per frame
+
+Two extra behaviors make the module more practical on the bench:
+
+- a sweep/self-test mode that repeatedly walks the target position between minimum and maximum
+- a watchdog-style failsafe that returns the output to center after a programmable number of inactive frames
 
 The design also exposes internal status on the regular Tiny Tapeout outputs:
 
 - `uo[1]` toggles each time a valid UART command is received
 - `uo[5:2]` shows the currently selected preset code
-- `uo[6]` latches high after the first valid command
-- `uo[7]` indicates that the UART receiver is currently busy
+- `uo[6]` goes high while the failsafe mode is active
+- `uo[7]` goes high while the sweep mode is active
 
 ## How to test
 
@@ -40,16 +46,17 @@ For UART testing on `ui[0]`:
 - send `M` for maximum
 - send `c` or `C` for center
 - send any digit from `0` to `9` for an intermediate preset
+- send `s` or `S` to enable sweep mode
 
 Expected outputs:
 
 - `uo[0]` produces the servo control pulse
 - `uo[1]` toggles on each accepted command
 - `uo[5:2]` reflects the selected preset number
-- `uo[6]` goes high after the first valid command
-- `uo[7]` goes high while the UART receiver is active
+- `uo[6]` goes high when failsafe has forced the output back to center
+- `uo[7]` goes high while sweep mode is running
 
-The repository also includes a cocotb regression in `test/test.py` that checks reset behavior, UART commands, and output status flags.
+The repository also includes a cocotb regression in `test/test.py` that checks reset behavior, UART commands, sweep mode, the failsafe path, and output status flags.
 
 ## External hardware
 
